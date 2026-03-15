@@ -1,0 +1,86 @@
+use std::path::PathBuf;
+use serde::{Serialize, Deserialize};
+use clap::ValueEnum;
+use std::str::FromStr;
+
+#[derive(Debug, Clone)]
+pub struct FileEntry {
+    pub path: PathBuf,
+    pub relative: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Description {
+    pub path: PathBuf,
+    pub relative: String,
+    pub text: String,
+    pub error: Option<String>,
+    pub from_cache: bool,
+}
+
+impl Description {
+    pub fn new(file: &FileEntry, text: String) -> Self {
+        Self {
+            path: file.path.clone(),
+            relative: file.relative.clone(),
+            text,
+            error: None,
+            from_cache: false,
+        }
+    }
+
+    pub fn cached(file: &FileEntry, text: String) -> Self {
+        Self {
+            path: file.path.clone(),
+            relative: file.relative.clone(),
+            text,
+            error: None,
+            from_cache: true,
+        }
+    }
+
+    pub fn error(file: &FileEntry, err: String) -> Self {
+        Self {
+            path: file.path.clone(),
+            relative: file.relative.clone(),
+            text: "[ERROR]".into(),
+            error: Some(err),
+            from_cache: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum OutputFormat {
+    Plain,
+    Color,
+    Json,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    En,
+    Ru,
+}
+
+impl Language {
+    pub fn prompt_suffix(&self) -> &'static str {
+        match self {
+            Language::En => "in English",
+            Language::Ru => "по-русски",
+        }
+    }
+}
+
+impl FromStr for Language {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "en" | "english" => Ok(Language::En),
+            "ru" | "russian" => Ok(Language::Ru),
+            _ => Err(anyhow::anyhow!("invalid language: {}", s)),
+        }
+    }
+}
