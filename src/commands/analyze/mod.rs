@@ -1,46 +1,16 @@
-use once_cell::sync::Lazy;
-use regex::Regex;
-use std::collections::HashMap;
+use crate::core::cache::Cache;
+use crate::core::types::{Description, FileEntry};
 use std::fs;
 
-use crate::cache::Cache;
-use crate::types::{Description, FileEntry};
+// Подмодули
+pub mod llm;
+pub mod pattern;
 
-// Объявляем подмодули
-mod cfamily;
-mod go;
-mod java;
-mod javascript;
-mod kotlin;
-mod markup;
-mod python;
-mod ruby;
-mod rust;
-mod swift;
+// Импортируем готовую карту паттернов из модуля pattern
+use pattern::LANGUAGE_PATTERNS;
 
-// Тип для хранения паттернов: вектор пар (имя_типа, Regex)
-type LanguagePatterns = Vec<(&'static str, Regex)>;
-
-// Статическая карта расширение -> паттерны
-static LANGUAGE_PATTERNS: Lazy<HashMap<&'static str, LanguagePatterns>> = Lazy::new(|| {
-    let mut m = HashMap::new();
-
-    // Регистрируем паттерны из каждого модуля
-    rust::patterns(&mut m);
-    python::patterns(&mut m);
-    javascript::patterns(&mut m);
-    go::patterns(&mut m);
-    java::patterns(&mut m);
-    cfamily::patterns(&mut m);
-    ruby::patterns(&mut m);
-    swift::patterns(&mut m);
-    kotlin::patterns(&mut m);
-    markup::patterns(&mut m);
-
-    m
-});
-
-pub fn describe_files(files: &[FileEntry], cache: &mut Cache) -> Vec<Description> {
+/// Режим pattern: быстрое извлечение символов из файлов
+pub fn describe_files_pattern(files: &[FileEntry], cache: &mut Cache) -> Vec<Description> {
     let mut results = Vec::new();
 
     for file in files {
@@ -89,3 +59,6 @@ pub fn describe_files(files: &[FileEntry], cache: &mut Cache) -> Vec<Description
 
     results
 }
+
+// Реэкспорт функции из llm для удобства
+pub use llm::describe_files as describe_files_llm;

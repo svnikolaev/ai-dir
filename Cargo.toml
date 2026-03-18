@@ -1,6 +1,6 @@
 [package]
 name = "ai-dir"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 description = "Fast project file description tool with LLM and pattern modes"
 authors = ["Serg Nikolaev <s.nikolaev@nklv.su>"]
@@ -25,3 +25,6 @@ walkdir = "2.4"
 
 [dev-dependencies]
 tempfile = "3.8"
+mockito = "1.0"
+assert_cmd = "2.0"
+predicates = "3.0"

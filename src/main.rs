@@ -1,15 +1,10 @@
-mod analyzer;
-mod cache;
-mod config;
-mod dump;
-mod render;
-mod scanner;
-mod types;
+mod commands;
+mod core;
 
-use crate::config::{Config, Mode};
-use crate::types::{Language, OutputFormat};
 use anyhow::Result;
 use clap::Parser;
+use core::config::{Config, Mode};
+use core::types::{Language, OutputFormat};
 use std::path::PathBuf;
 
 #[derive(Parser)]
@@ -40,7 +35,11 @@ use std::path::PathBuf;
                   \x20  aid --dump --include-binary .\n\
                   \n\
                   \x20  # Quiet mode (suppress warnings)\n\
-                  \x20  aid --dump --quiet ."
+                  \x20  aid --dump --quiet .\n\
+                  \n\
+                  \x20  # Show git diff --staged (for commit messages)\n\
+                  \x20  aid --diff\n\
+                  \x20  aid --diff --staged"
 )]
 struct Args {
     #[arg(default_value = ".", help = "Directory to analyze")]
@@ -126,27 +125,47 @@ struct Args {
     quiet: bool,
 
     #[arg(
+        short = 'D',
         long,
         help = "Add metadata (size, modification time) to headers (plain, markdown)"
     )]
     detailed: bool,
 
     #[arg(
+        short = 'A',
         long,
         help = "Use absolute paths instead of relative in headers/attributes"
     )]
     absolute_paths: bool,
+
+    // Diff options
+    #[arg(short = 'g', long, help = "Show git diff (like 'git diff')")]
+    diff: bool,
+
+    #[arg(
+        short = 's',
+        long,
+        help = "Show staged changes (equivalent to 'git diff --staged')"
+    )]
+    staged: bool,
 }
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 enum DumpFormat {
     Plain,
+    #[value(alias = "md")]
     Markdown,
     Xml,
 }
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Если запрошен diff, запускаем его и выходим
+    if args.diff {
+        commands::diff::run(args.staged)?;
+        return Ok(());
+    }
 
     let global_config = Config::load()?;
 
@@ -177,15 +196,15 @@ fn main() -> Result<()> {
         config.language = lang;
     }
 
-    let files = scanner::scan(&args.path, &config)?;
+    let files = core::scanner::scan(&args.path, &config)?;
 
     if let Some(format) = args.dump {
         let dump_format = match format {
-            DumpFormat::Plain => dump::DumpFormat::Plain,
-            DumpFormat::Markdown => dump::DumpFormat::Markdown,
-            DumpFormat::Xml => dump::DumpFormat::Xml,
+            DumpFormat::Plain => commands::dump::DumpFormat::Plain,
+            DumpFormat::Markdown => commands::dump::DumpFormat::Markdown,
+            DumpFormat::Xml => commands::dump::DumpFormat::Xml,
         };
-        dump::dump_files(
+        commands::dump::run(
             &files,
             args.max_size,
             args.max_lines,
@@ -199,21 +218,22 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Режим analyze
     let mut cache = if config.cache_enabled && !args.no_cache {
-        match cache::Cache::load() {
+        match core::cache::Cache::load() {
             Ok(c) => c,
             Err(e) => {
                 eprintln!("Warning: failed to load cache ({}), using empty cache", e);
-                cache::Cache::new()
+                core::cache::Cache::new()
             }
         }
     } else {
-        cache::Cache::new()
+        core::cache::Cache::new()
     };
 
     let descriptions = match config.default_mode {
-        Mode::Llm => analyzer::llm::describe_files(&files, &config, &mut cache)?,
-        Mode::Pattern => analyzer::pattern::describe_files(&files, &mut cache),
+        Mode::Llm => commands::analyze::describe_files_llm(&files, &config, &mut cache)?,
+        Mode::Pattern => commands::analyze::describe_files_pattern(&files, &mut cache),
     };
 
     if config.cache_enabled && !args.no_cache {
@@ -222,7 +242,7 @@ fn main() -> Result<()> {
         }
     }
 
-    render::print_tree(&descriptions, args.depth, args.format);
+    core::render::print_tree(&descriptions, args.depth, args.format);
 
     Ok(())
 }

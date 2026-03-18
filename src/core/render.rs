@@ -1,4 +1,4 @@
-use crate::types::{Description, OutputFormat};
+use crate::core::types::{Description, OutputFormat};
 use colored::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -170,4 +170,47 @@ fn print_color(node: &TreeNode, prefix: &str, depth: usize, max_depth: Option<us
             max_depth,
         );
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::Description;
+
+    #[test]
+    fn test_build_tree() {
+        let desc = vec![
+            Description {
+                path: "/a/b.rs".into(),
+                relative: "a/b.rs".into(),
+                text: "file b".into(),
+                error: None,
+                from_cache: false,
+            },
+            Description {
+                path: "/a/c.rs".into(),
+                relative: "a/c.rs".into(),
+                text: "file c".into(),
+                error: None,
+                from_cache: false,
+            },
+            Description {
+                path: "/d.rs".into(),
+                relative: "d.rs".into(),
+                text: "file d".into(),
+                error: None,
+                from_cache: false,
+            },
+        ];
+        let tree = build_tree(&desc);
+        assert_eq!(tree.children.len(), 2); // "a" и "d.rs"
+        let a_node = tree.children.get("a").unwrap();
+        assert_eq!(a_node.children.len(), 2); // b.rs, c.rs
+        assert!(a_node.children.contains_key("b.rs"));
+        assert!(a_node.children.contains_key("c.rs"));
+        let d_node = tree.children.get("d.rs").unwrap();
+        assert!(d_node.description.is_some());
+    }
+
+    // Дополнительно можно протестировать print_json и т.д., но они используют stdout
 }

@@ -1,4 +1,4 @@
-use crate::types::Language;
+use crate::core::types::Language;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -45,6 +45,7 @@ pub struct Config {
     pub cache_enabled: bool,
     pub cache_ttl_days: Option<u64>,
     pub language: Language,
+    pub respect_gitignore: bool, // новое поле
 }
 
 impl Default for Config {
@@ -68,6 +69,7 @@ impl Default for Config {
             cache_enabled: false,
             cache_ttl_days: None,
             language: Language::Ru,
+            respect_gitignore: true, // по умолчанию уважаем .gitignore
         }
     }
 }
@@ -106,6 +108,7 @@ impl Config {
             cache_enabled: local.cache_enabled,
             cache_ttl_days: local.cache_ttl_days.or(self.cache_ttl_days),
             language: local.language,
+            respect_gitignore: local.respect_gitignore, // добавляем объединение
         }
     }
 }
