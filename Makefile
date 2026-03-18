@@ -7,7 +7,7 @@ LINK_NAME ?= aid
 
 all: test build install link
 
-test:
+test: check-fmt
 	cargo test
 
 build:
@@ -31,3 +31,11 @@ clean:
 uninstall:
 	@rm -f ~/.cargo/bin/ai-dir ~/.cargo/bin/$(LINK_NAME)
 	@echo "Удалены ai-dir и $(LINK_NAME) из ~/.cargo/bin (если существовали)."
+
+fmt:
+	cargo fmt --all
+
+check-fmt:
+	cargo fmt --all -- --check
+
+ci: check-fmt test build

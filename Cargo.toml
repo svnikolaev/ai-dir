@@ -1,6 +1,6 @@
 [package]
 name = "ai-dir"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Fast project file description tool with LLM and pattern modes"
 authors = ["Serg Nikolaev <s.nikolaev@nklv.su>"]
@@ -22,3 +22,6 @@ serde_json = "1.0"
 thiserror = "1.0"
 toml = "0.8"
 walkdir = "2.4"
+
+[dev-dependencies]
+tempfile = "3.8"

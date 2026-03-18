@@ -1,18 +1,23 @@
-mod config;
-mod scanner;
 mod analyzer;
 mod cache;
+mod config;
+mod dump;
 mod render;
+mod scanner;
 mod types;
 
-use clap::Parser;
-use anyhow::Result;
-use std::path::PathBuf;
 use crate::config::{Config, Mode};
-use crate::types::{OutputFormat, Language};
+use crate::types::{Language, OutputFormat};
+use anyhow::Result;
+use clap::Parser;
+use std::path::PathBuf;
 
 #[derive(Parser)]
-#[command(name = "ai-dir", about = "Generate one-line descriptions for files in a directory", version)]
+#[command(
+    name = "ai-dir",
+    about = "Generate one-line descriptions for files in a directory",
+    version
+)]
 struct Args {
     #[arg(default_value = ".")]
     path: PathBuf,
@@ -31,6 +36,18 @@ struct Args {
     no_cache: bool,
     #[arg(long, value_enum)]
     lang: Option<Language>,
+
+    // Dump options
+    #[arg(long)]
+    dump: bool,
+    #[arg(long, value_name = "BYTES")]
+    max_size: Option<u64>,
+    #[arg(long, value_name = "LINES")]
+    max_lines: Option<usize>,
+    #[arg(long)]
+    include_binary: bool,
+    #[arg(long, short = 'q')]
+    quiet: bool,
 }
 
 fn main() -> Result<()> {
@@ -66,6 +83,17 @@ fn main() -> Result<()> {
     }
 
     let files = scanner::scan(&args.path, &config)?;
+
+    if args.dump {
+        dump::dump_files(
+            &files,
+            args.max_size,
+            args.max_lines,
+            args.include_binary,
+            args.quiet,
+        )?;
+        return Ok(());
+    }
 
     let mut cache = if config.cache_enabled && !args.no_cache {
         match cache::Cache::load() {
