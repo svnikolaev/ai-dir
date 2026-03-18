@@ -70,7 +70,8 @@ mod tests {
         "#;
         let (entry, _dir) = create_file(content, "rs");
         let mut cache = Cache::new();
-        let result = super::super::describe_files_pattern(&[entry], &mut cache);
+        // Добавлен третий аргумент `false`
+        let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
         assert_eq!(result.len(), 1);
         let desc = &result[0];
         assert!(desc.text.contains("struct MyStruct"));
@@ -82,7 +83,7 @@ mod tests {
         assert!(desc.text.contains("trait MyTrait"));
         assert!(desc.text.contains("type MyType"));
         assert!(desc.text.contains("const MY_CONST"));
-        assert!(!desc.text.contains("…")); // не больше 10 символов
+        assert!(!desc.text.contains("…"));
     }
 
     #[test]
@@ -90,7 +91,8 @@ mod tests {
         let content = "just plain text without any symbols";
         let (entry, _dir) = create_file(content, "txt");
         let mut cache = Cache::new();
-        let result = super::super::describe_files_pattern(&[entry], &mut cache);
+        // Добавлен третий аргумент `false`
+        let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
         assert_eq!(result[0].text, "no symbols");
     }
 }

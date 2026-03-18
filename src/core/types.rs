@@ -16,6 +16,8 @@ pub struct Description {
     pub text: String,
     pub error: Option<String>,
     pub from_cache: bool,
+    pub total_lines: Option<usize>,
+    pub long_functions: Vec<(String, usize)>, // функции, превышающие порог
 }
 
 impl Description {
@@ -26,16 +28,25 @@ impl Description {
             text,
             error: None,
             from_cache: false,
+            total_lines: None,
+            long_functions: Vec::new(),
         }
     }
 
-    pub fn cached(file: &FileEntry, text: String) -> Self {
+    pub fn cached(
+        file: &FileEntry,
+        text: String,
+        total_lines: Option<usize>,
+        long_functions: Vec<(String, usize)>,
+    ) -> Self {
         Self {
             path: file.path.clone(),
             relative: file.relative.clone(),
             text,
             error: None,
             from_cache: true,
+            total_lines,
+            long_functions,
         }
     }
 
@@ -46,6 +57,8 @@ impl Description {
             text: "[ERROR]".into(),
             error: Some(err),
             from_cache: false,
+            total_lines: None,
+            long_functions: Vec::new(),
         }
     }
 }
