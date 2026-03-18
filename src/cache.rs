@@ -1,8 +1,8 @@
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CacheEntry {
@@ -67,7 +67,10 @@ impl Cache {
 
     pub fn insert(&mut self, path: PathBuf, text: String) {
         let mtime = match fs::metadata(&path).and_then(|m| m.modified()) {
-            Ok(time) => time.duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as i64,
+            Ok(time) => time
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as i64,
             Err(_) => return,
         };
         self.entries.insert(path, CacheEntry { mtime, text });

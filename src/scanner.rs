@@ -1,15 +1,15 @@
-use std::path::Path;
-use std::fs;  // добавлено для canonicalize
-use regex::Regex;
-use ignore::WalkBuilder;
-use anyhow::Result;
 use crate::config::Config;
 use crate::types::FileEntry;
+use anyhow::Result;
+use ignore::WalkBuilder;
+use regex::Regex;
+use std::fs;
+use std::path::Path;
 
 pub fn scan(root: &Path, config: &Config) -> Result<Vec<FileEntry>> {
     // Приводим корневой путь к абсолютному для корректного strip_prefix
     let root = fs::canonicalize(root)?;
-    
+
     let include_re = Regex::new(&config.include_pattern)?;
     let exclude_re = Regex::new(&config.exclude_pattern)?;
     let mut files = Vec::new();
@@ -21,7 +21,7 @@ pub fn scan(root: &Path, config: &Config) -> Result<Vec<FileEntry>> {
         .build()
     {
         let entry = result?;
-        
+
         // Проверяем, что это файл (file_type может быть None для ссылок и т.п.)
         if !entry.file_type().map_or(false, |ft| ft.is_file()) {
             continue;

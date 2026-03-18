@@ -1,22 +1,22 @@
-use std::collections::HashMap;
-use std::fs;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::collections::HashMap;
+use std::fs;
 
 use crate::cache::Cache;
 use crate::types::{Description, FileEntry};
 
 // Объявляем подмодули
-mod rust;
-mod python;
-mod javascript;
+mod cfamily;
 mod go;
 mod java;
-mod cfamily;
-mod ruby;
-mod swift;
+mod javascript;
 mod kotlin;
 mod markup;
+mod python;
+mod ruby;
+mod rust;
+mod swift;
 
 // Тип для хранения паттернов: вектор пар (имя_типа, Regex)
 type LanguagePatterns = Vec<(&'static str, Regex)>;

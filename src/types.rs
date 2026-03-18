@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use serde::{Serialize, Deserialize};
 use clap::ValueEnum;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]

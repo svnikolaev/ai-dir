@@ -1,10 +1,10 @@
-use std::fs;
+use crate::cache::Cache;
+use crate::config::{Backend, Config};
+use crate::types::{Description, FileEntry};
 use anyhow::{Result, anyhow};
 use reqwest::blocking::Client;
-use serde_json::{json, Value};
-use crate::config::{Config, Backend};
-use crate::types::{FileEntry, Description};
-use crate::cache::Cache;
+use serde_json::{Value, json};
+use std::fs;
 
 pub fn describe_files(
     files: &[FileEntry],

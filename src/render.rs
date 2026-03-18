@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use crate::types::{Description, OutputFormat};
 use colored::*;
 use serde_json::json;
-use crate::types::{Description, OutputFormat};
+use std::collections::HashMap;
 
 #[derive(Debug)]
 struct TreeNode {
@@ -29,10 +29,16 @@ fn build_tree(descriptions: &[Description]) -> TreeNode {
         for (i, part) in parts.iter().enumerate() {
             if i == parts.len() - 1 {
                 // file part
-                node = node.children.entry(part.to_string()).or_insert_with(|| TreeNode::new(part.to_string()));
+                node = node
+                    .children
+                    .entry(part.to_string())
+                    .or_insert_with(|| TreeNode::new(part.to_string()));
                 node.description = Some(desc.clone());
             } else {
-                node = node.children.entry(part.to_string()).or_insert_with(|| TreeNode::new(part.to_string()));
+                node = node
+                    .children
+                    .entry(part.to_string())
+                    .or_insert_with(|| TreeNode::new(part.to_string()));
             }
         }
     }
@@ -41,7 +47,7 @@ fn build_tree(descriptions: &[Description]) -> TreeNode {
 
 pub fn print_tree(descriptions: &[Description], max_depth: Option<usize>, format: OutputFormat) {
     let tree = build_tree(descriptions);
-    
+
     if tree.children.is_empty() {
         match format {
             OutputFormat::Json => println!("[]"),
@@ -88,7 +94,9 @@ fn node_to_json(node: &TreeNode, depth: usize, max_depth: Option<usize>) -> serd
 
 fn print_plain(node: &TreeNode, prefix: &str, depth: usize, max_depth: Option<usize>) {
     if let Some(max) = max_depth {
-        if depth > max { return; }
+        if depth > max {
+            return;
+        }
     }
     let mut entries: Vec<_> = node.children.iter().collect();
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -105,13 +113,20 @@ fn print_plain(node: &TreeNode, prefix: &str, depth: usize, max_depth: Option<us
             format!("{}{}{}/", prefix, connector, name)
         };
         println!("{}", line);
-        print_plain(child, &(prefix.to_owned() + new_prefix), depth + 1, max_depth);
+        print_plain(
+            child,
+            &(prefix.to_owned() + new_prefix),
+            depth + 1,
+            max_depth,
+        );
     }
 }
 
 fn print_color(node: &TreeNode, prefix: &str, depth: usize, max_depth: Option<usize>) {
     if let Some(max) = max_depth {
-        if depth > max { return; }
+        if depth > max {
+            return;
+        }
     }
     let mut entries: Vec<_> = node.children.iter().collect();
     entries.sort_by(|(a, _), (b, _)| a.cmp(b));
@@ -133,10 +148,26 @@ fn print_color(node: &TreeNode, prefix: &str, depth: usize, max_depth: Option<us
                 desc.text.clone()
             };
             // Оборачиваем описание в скобки
-            println!("{}{}{}  ({})", prefix.bright_black(), connector.bright_black(), name_part, summary);
+            println!(
+                "{}{}{}  ({})",
+                prefix.bright_black(),
+                connector.bright_black(),
+                name_part,
+                summary
+            );
         } else {
-            println!("{}{}{}/", prefix.bright_black(), connector.bright_black(), name.cyan().bold());
+            println!(
+                "{}{}{}/",
+                prefix.bright_black(),
+                connector.bright_black(),
+                name.cyan().bold()
+            );
         }
-        print_color(child, &(prefix.to_owned() + new_prefix), depth + 1, max_depth);
+        print_color(
+            child,
+            &(prefix.to_owned() + new_prefix),
+            depth + 1,
+            max_depth,
+        );
     }
 }

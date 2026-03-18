@@ -1,10 +1,12 @@
+use crate::types::Language;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
-use crate::types::Language;
 
-pub const DEFAULT_INCLUDE_PATTERN: &str = r"\.(rs|toml|md|txt|py|js|ts|go|java|cpp|c|h|cs|php|rb|swift|kt)$";
-pub const DEFAULT_EXCLUDE_PATTERN: &str = r"(target|\.git|node_modules|dist|build|\.vscode|\.idea|__pycache__|\.venv|env)";
+pub const DEFAULT_INCLUDE_PATTERN: &str =
+    r"\.(rs|toml|md|txt|py|js|ts|go|java|cpp|c|h|cs|php|rb|swift|kt)$";
+pub const DEFAULT_EXCLUDE_PATTERN: &str =
+    r"(target|\.git|node_modules|dist|build|\.vscode|\.idea|__pycache__|\.venv|env)";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Backend {
