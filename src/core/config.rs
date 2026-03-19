@@ -87,7 +87,7 @@ impl Default for Config {
             }],
             include_pattern: DEFAULT_INCLUDE_PATTERN.into(),
             exclude_pattern: DEFAULT_EXCLUDE_PATTERN.into(),
-            cache_enabled: false,
+            cache_enabled: true,
             cache_ttl_days: None,
             language: Language::Ru,
             respect_gitignore: true,
