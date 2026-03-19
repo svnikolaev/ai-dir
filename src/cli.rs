@@ -8,17 +8,17 @@ use std::path::PathBuf;
     about = "Generate one-line descriptions for files in a directory",
     version,
     after_help = "EXAMPLES:\n\
-                  \x20  # Basic pattern mode\n\x20  aid\n\
-                  \x20  # Show only long functions (threshold 20)\n\x20  aid --long\n\
-                  \x20  # Show functions longer than 40 lines\n\x20  aid --long 40\n\
-                  \x20  # LLM mode with Russian\n\x20  aid -m llm --lang ru /path\n\
-                  \x20  # Dump plain\n\x20  aid --dump . > all.txt\n\
-                  \x20  # Dump markdown with metadata\n\x20  aid --dump markdown --detailed src/ > docs.md\n\
-                  \x20  # Dump XML\n\x20  aid --dump xml . > project.xml\n\
-                  \x20  # Limit size/lines\n\x20  aid --dump --max-size 1M --max-lines 50 .\n\
-                  \x20  # Git diff (staged)\n\x20  aid -gs\n\
-                  \x20  # Clear cache\n\x20  aid --refresh-cache\n\
-                  \x20  # Full symbols in JSON\n\x20  aid --format json -T"
+                  \x20  # Basic pattern mode\n\x20    aid\n\
+                  \x20  # Show only long functions (threshold 20)\n\x20    aid --long\n\
+                  \x20  # Show functions longer than 40 lines\n\x20    aid --long 40\n\
+                  \x20  # LLM mode with Russian\n\x20    aid -m llm --lang ru /path\n\
+                  \x20  # Dump plain\n\x20    aid --dump . > all.txt\n\
+                  \x20  # Dump markdown with metadata\n\x20    aid --dump markdown --detailed src/ > docs.md\n\
+                  \x20  # Dump XML\n\x20    aid --dump xml . > project.xml\n\
+                  \x20  # Limit size/lines\n\x20    aid --dump --max-size 1M --max-lines 50 .\n\
+                  \x20  # Git diff (staged)\n\x20    aid -gs\n\
+                  \x20  # Clear cache\n\x20    aid --refresh-cache\n\
+                  \x20  # Full symbols in JSON\n\x20    aid --format json -T"
 )]
 pub struct Args {
     #[arg(default_value = ".", help = "Directory to analyze")]

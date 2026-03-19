@@ -9,7 +9,7 @@ pub struct FileEntry {
     pub relative: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Description {
     pub path: PathBuf,
     pub relative: String,

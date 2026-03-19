@@ -1,56 +1,56 @@
 use crate::core::cache::{Cache, FileMetadata};
+use crate::core::config::Config;
 use crate::core::types::{Description, FileEntry};
-use regex::Regex;
 use std::fs;
 
-pub mod llm;
-pub mod pattern;
+mod llm;
+mod pattern;
 
 use pattern::LANGUAGE_PATTERNS;
+use syn::spanned::Spanned;
+use syn::{self, ImplItemFn, ItemFn, visit::Visit};
+
+const PATTERN_CACHE_VERSION: u32 = 1;
 
 fn count_lines(content: &str) -> usize {
     content.lines().count()
 }
 
-/// Извлечение функций из Rust кода с определением их размера в строках
-fn extract_functions_rust(content: &str) -> Vec<(String, usize)> {
-    let mut result = Vec::new();
-    let fn_re = Regex::new(r"(?m)^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(").unwrap();
-    let lines: Vec<&str> = content.lines().collect();
-    for cap in fn_re.captures_iter(content) {
-        let fn_name = cap[1].to_string();
-        let start_pos = cap.get(0).unwrap().start();
-        let start_line = content[..start_pos].lines().count();
-        let mut brace_level = 0;
-        let mut end_line = start_line;
-        let mut found = false;
-        for (i, line) in lines.iter().enumerate().skip(start_line) {
-            for ch in line.chars() {
-                match ch {
-                    '{' => brace_level += 1,
-                    '}' => {
-                        if brace_level > 0 {
-                            brace_level -= 1;
-                            if brace_level == 0 {
-                                end_line = i;
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            if found {
-                break;
-            }
-        }
-        if found {
-            let fn_lines = end_line - start_line + 1;
-            result.push((fn_name, fn_lines));
-        }
+struct FunctionCollector {
+    functions: Vec<(String, usize)>,
+}
+
+impl<'ast> Visit<'ast> for FunctionCollector {
+    fn visit_item_fn(&mut self, node: &'ast ItemFn) {
+        let name = node.sig.ident.to_string();
+        let start_line = node.span().start().line;
+        let end_line = node.span().end().line;
+        let lines = end_line - start_line + 1;
+        self.functions.push((name, lines));
+        syn::visit::visit_item_fn(self, node);
     }
-    result
+
+    fn visit_impl_item_fn(&mut self, node: &'ast ImplItemFn) {
+        let name = node.sig.ident.to_string();
+        let start_line = node.span().start().line;
+        let end_line = node.span().end().line;
+        let lines = end_line - start_line + 1;
+        self.functions.push((name, lines));
+        syn::visit::visit_impl_item_fn(self, node);
+    }
+}
+
+/// Извлечение функций из Rust кода с точным определением строк с использованием `syn`.
+fn extract_functions_rust(content: &str) -> Vec<(String, usize)> {
+    let ast = match syn::parse_file(content) {
+        Ok(ast) => ast,
+        Err(_) => return Vec::new(),
+    };
+    let mut collector = FunctionCollector {
+        functions: Vec::new(),
+    };
+    collector.visit_file(&ast);
+    collector.functions
 }
 
 /// Общая функция для извлечения функций в зависимости от языка
@@ -65,11 +65,28 @@ pub fn describe_files_pattern(
     files: &[FileEntry],
     cache: &mut Cache,
     no_truncate: bool,
+    config: &Config,
 ) -> Vec<Description> {
     let mut results = Vec::new();
-    let params = serde_json::json!({});
+    let params = serde_json::json!({
+        "include": config.include_pattern,
+        "exclude": config.exclude_pattern,
+        "version": PATTERN_CACHE_VERSION,
+    });
 
     for file in files {
+        if let Some(max_size) = config.max_file_size {
+            if let Ok(meta) = fs::metadata(&file.path) {
+                if meta.len() > max_size {
+                    results.push(Description::error(
+                        file,
+                        format!("[SKIPPED: file too large ({} > {})]", meta.len(), max_size),
+                    ));
+                    continue;
+                }
+            }
+        }
+
         if let Some((cached_text, metadata)) = cache.get(&file.path, "pattern", &params) {
             results.push(Description::cached(
                 file,
@@ -132,10 +149,9 @@ pub fn describe_files_pattern(
             display.join(", ")
         };
 
-        // long_functions пока оставляем пустым, будем использовать functions
         let metadata = FileMetadata {
             total_lines,
-            long_functions: vec![], // устарело
+            long_functions: vec![],
             functions: functions.clone(),
             symbols: unique_symbols.clone(),
         };
@@ -164,3 +180,36 @@ pub fn describe_files_pattern(
 }
 
 pub use llm::describe_files as describe_files_llm;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::config::Config;
+    use std::fs::File;
+    use std::io::Write;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_describe_files_pattern_skips_large_file() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("large.rs");
+        let mut file = File::create(&file_path).unwrap();
+        let data = vec![b'a'; 2 * 1024 * 1024]; // 2 МБ
+        file.write_all(&data).unwrap();
+        drop(file);
+
+        let entry = FileEntry {
+            path: file_path.clone(),
+            relative: "large.rs".into(),
+        };
+
+        let mut cache = Cache::new();
+        let mut config = Config::default();
+        config.max_file_size = Some(1024 * 1024); // 1 МБ
+
+        let results = describe_files_pattern(&[entry], &mut cache, false, &config);
+        assert_eq!(results.len(), 1);
+        assert!(results[0].error.is_some());
+        assert!(results[0].error.as_ref().unwrap().contains("SKIPPED"));
+    }
+}

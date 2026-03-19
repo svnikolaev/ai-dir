@@ -2,6 +2,7 @@ use crate::core::types::Language;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::path::PathBuf;
 
 pub const DEFAULT_INCLUDE_PATTERN: &str =
     r"\.(rs|toml|md|txt|py|js|ts|go|java|cpp|c|h|cs|php|rb|swift|kt)$";
@@ -16,6 +17,24 @@ pub struct Backend {
     pub model: String,
     pub timeout_secs: Option<u64>,
     pub options: Option<serde_json::Map<String, serde_json::Value>>,
+}
+
+impl Backend {
+    /// Возвращает параметры, влияющие на результат запроса, для использования в ключе кэша
+    pub fn cache_params(&self) -> serde_json::Value {
+        let mut map = serde_json::Map::new();
+        map.insert(
+            "model".to_string(),
+            serde_json::Value::from(self.model.clone()),
+        );
+        if let Some(opts) = &self.options {
+            if let Some(temp) = opts.get("temperature") {
+                map.insert("temperature".to_string(), temp.clone());
+            }
+            // При необходимости можно добавить и другие параметры
+        }
+        serde_json::Value::Object(map)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq)]
@@ -45,7 +64,9 @@ pub struct Config {
     pub cache_enabled: bool,
     pub cache_ttl_days: Option<u64>,
     pub language: Language,
-    pub respect_gitignore: bool, // новое поле
+    pub respect_gitignore: bool,
+    pub max_file_size: Option<u64>,
+    pub quiet: bool,
 }
 
 impl Default for Config {
@@ -69,20 +90,28 @@ impl Default for Config {
             cache_enabled: false,
             cache_ttl_days: None,
             language: Language::Ru,
-            respect_gitignore: true, // по умолчанию уважаем .gitignore
+            respect_gitignore: true,
+            max_file_size: Some(10 * 1024 * 1024), // 10 МБ
+            quiet: false,
         }
     }
 }
 
 impl Config {
     pub fn load() -> Result<Self> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| anyhow::anyhow!("cannot find config directory"))?
-            .join("ai-dir");
-        let config_path = config_dir.join("config.toml");
+        let config_path = if let Ok(path) = std::env::var("AI_DIR_CONFIG") {
+            PathBuf::from(path)
+        } else {
+            dirs::config_dir()
+                .ok_or_else(|| anyhow::anyhow!("cannot find config directory"))?
+                .join("ai-dir")
+                .join("config.toml")
+        };
 
         if !config_path.exists() {
-            fs::create_dir_all(&config_dir)?;
+            if let Some(parent) = config_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
             let default = Config::default();
             let toml = toml::to_string_pretty(&default)?;
             fs::write(&config_path, toml)?;
@@ -108,7 +137,9 @@ impl Config {
             cache_enabled: local.cache_enabled,
             cache_ttl_days: local.cache_ttl_days.or(self.cache_ttl_days),
             language: local.language,
-            respect_gitignore: local.respect_gitignore, // добавляем объединение
+            respect_gitignore: local.respect_gitignore,
+            max_file_size: local.max_file_size.or(self.max_file_size),
+            quiet: local.quiet,
         }
     }
 }

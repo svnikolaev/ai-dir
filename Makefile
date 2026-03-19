@@ -33,6 +33,7 @@ uninstall:
 	@echo "Удалены ai-dir и $(LINK_NAME) из ~/.cargo/bin (если существовали)."
 
 fmt:
+	cargo sort
 	cargo fmt --all
 
 check-fmt:

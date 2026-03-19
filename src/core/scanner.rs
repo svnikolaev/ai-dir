@@ -109,6 +109,7 @@ mod tests {
             cache_ttl_days: None,
             language: Language::En,
             respect_gitignore: true,
+            ..Default::default()
         };
 
         let files = scan(dir.path(), &config).unwrap();
@@ -134,6 +135,7 @@ mod tests {
             cache_ttl_days: None,
             language: Language::En,
             respect_gitignore: true,
+            ..Default::default()
         };
 
         let files = scan(dir.path(), &config).unwrap();
@@ -159,6 +161,7 @@ mod tests {
             cache_ttl_days: None,
             language: Language::En,
             respect_gitignore: true,
+            ..Default::default()
         };
 
         let files = scan(dir.path(), &config).unwrap();

@@ -86,9 +86,11 @@ fn main() -> Result<()> {
     };
 
     let descriptions = match config.default_mode {
-        Mode::Llm => commands::analyze::describe_files_llm(&files, &config, &mut cache)?,
+        Mode::Llm => {
+            commands::analyze::describe_files_llm(&files, &config, &mut cache, args.quiet)?
+        }
         Mode::Pattern => {
-            commands::analyze::describe_files_pattern(&files, &mut cache, args.no_truncate)
+            commands::analyze::describe_files_pattern(&files, &mut cache, args.no_truncate, &config)
         }
     };
 

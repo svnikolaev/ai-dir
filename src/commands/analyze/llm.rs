@@ -10,13 +10,21 @@ pub fn describe_files(
     files: &[FileEntry],
     config: &Config,
     cache: &mut Cache,
+    quiet: bool,
 ) -> Result<Vec<Description>> {
     let client = Client::new();
     let mut results = Vec::new();
 
+    // Берем первый бэкенд для параметров (fallback-бэкенды должны иметь одинаковые значимые параметры? Для кэша используем параметры первого бэкенда)
+    let backend_params = config
+        .backends
+        .first()
+        .map(|b| b.cache_params())
+        .unwrap_or(json!({}));
+
     let params = json!({
         "language": config.language,
-        "model": config.backends.first().map(|b| b.model.clone()).unwrap_or_default(),
+        "backend_params": backend_params,
     });
 
     for file in files {
@@ -32,6 +40,19 @@ pub fn describe_files(
             continue;
         }
 
+        // Проверка размера файла (опционально, можно тоже пропускать большие)
+        if let Some(max_size) = config.max_file_size {
+            if let Ok(meta) = fs::metadata(&file.path) {
+                if meta.len() > max_size {
+                    results.push(Description::error(
+                        file,
+                        format!("[SKIPPED: file too large ({} > {})]", meta.len(), max_size),
+                    ));
+                    continue;
+                }
+            }
+        }
+
         let content = match fs::read_to_string(&file.path) {
             Ok(c) => c,
             Err(e) => {
@@ -40,7 +61,8 @@ pub fn describe_files(
             }
         };
         let truncated = if content.len() > 8000 {
-            format!("{}\n\n[...file truncated...]", &content[..8000])
+            let boundary = content.floor_char_boundary(8000);
+            format!("{}\n\n[...file truncated...]", &content[..boundary])
         } else {
             content
         };
@@ -68,7 +90,11 @@ pub fn describe_files(
                     success = true;
                     break;
                 }
-                Err(e) => eprintln!("Backend '{}' failed: {}", backend.name, e),
+                Err(e) => {
+                    if !quiet {
+                        eprintln!("Backend '{}' failed: {}", backend.name, e);
+                    }
+                }
             }
         }
 
@@ -159,7 +185,7 @@ mod tests {
 
         let (entry, _dir) = create_file("dummy content");
         let mut cache = Cache::new();
-        let result = describe_files(&[entry], &config, &mut cache).unwrap();
+        let result = describe_files(&[entry], &config, &mut cache, false).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].text, "This is a test file.");
         mock.assert();
@@ -202,7 +228,7 @@ mod tests {
 
         let (entry, _dir) = create_file("test");
         let mut cache = Cache::new();
-        let result = describe_files(&[entry], &config, &mut cache).unwrap();
+        let result = describe_files(&[entry], &config, &mut cache, false).unwrap();
         assert_eq!(result[0].text, "Fallback response");
         mock1.assert();
         mock2.assert();
@@ -232,7 +258,7 @@ mod tests {
 
         let (entry, _dir) = create_file("test");
         let mut cache = Cache::new();
-        let result = describe_files(&[entry], &config, &mut cache).unwrap();
+        let result = describe_files(&[entry], &config, &mut cache, false).unwrap();
         assert_eq!(result[0].text, "[ERROR]");
         assert!(result[0].error.as_deref() == Some("all backends failed"));
         mock.assert();

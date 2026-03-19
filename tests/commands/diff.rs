@@ -100,3 +100,18 @@ fn test_diff_unstaged() {
     assert!(stdout.contains("diff --git a/test.txt b/test.txt"));
     assert!(stdout.contains("+modified"));
 }
+
+#[test]
+fn test_diff_not_in_git_repo() {
+    let dir = tempdir().unwrap(); // без инициализации git
+    let output = Command::cargo_bin("ai-dir")
+        .unwrap()
+        .args(["--diff"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    assert!(stderr.contains("not a git repository") || stderr.contains("fatal"));
+}

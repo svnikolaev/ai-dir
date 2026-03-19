@@ -38,6 +38,7 @@ pub static LANGUAGE_PATTERNS: Lazy<HashMap<&'static str, LanguagePatterns>> = La
 #[cfg(test)]
 mod tests {
     use crate::core::cache::Cache;
+    use crate::core::config::Config;
     use crate::core::types::FileEntry;
     use std::fs::File;
     use std::io::Write;
@@ -70,7 +71,8 @@ mod tests {
         "#;
         let (entry, _dir) = create_file(content, "rs");
         let mut cache = Cache::new();
-        let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
+        let config = Config::default();
+        let result = super::super::describe_files_pattern(&[entry], &mut cache, false, &config);
         assert_eq!(result.len(), 1);
         let desc = &result[0];
         assert!(desc.text.contains("struct MyStruct"));
@@ -93,7 +95,8 @@ mod tests {
         let content = "just plain text without any symbols";
         let (entry, _dir) = create_file(content, "txt");
         let mut cache = Cache::new();
-        let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
+        let config = Config::default();
+        let result = super::super::describe_files_pattern(&[entry], &mut cache, false, &config);
         assert_eq!(result[0].text, "no symbols");
         assert!(result[0].symbols.is_empty());
         assert!(result[0].functions.is_empty());
