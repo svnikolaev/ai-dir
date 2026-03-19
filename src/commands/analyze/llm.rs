@@ -26,7 +26,8 @@ pub fn describe_files(
                 cached_text.to_string(),
                 None,
                 vec![],
-                vec![], // symbols
+                vec![],
+                vec![],
             ));
             continue;
         }
@@ -55,7 +56,7 @@ pub fn describe_files(
         for backend in &config.backends {
             match call_backend(&client, backend, &prompt) {
                 Ok(text) => {
-                    let desc = Description::new(file, text.clone(), vec![]);
+                    let desc = Description::new(file, text.clone(), vec![], vec![]);
                     cache.insert(
                         file.path.clone(),
                         text,

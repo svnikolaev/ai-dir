@@ -17,12 +17,18 @@ pub struct Description {
     pub error: Option<String>,
     pub from_cache: bool,
     pub total_lines: Option<usize>,
-    pub long_functions: Vec<(String, usize)>,
+    pub long_functions: Vec<(String, usize)>, // устарело, но оставляем для обратной совместимости кэша
+    pub functions: Vec<(String, usize)>,      // все функции с размерами
     pub symbols: Vec<String>,
 }
 
 impl Description {
-    pub fn new(file: &FileEntry, text: String, symbols: Vec<String>) -> Self {
+    pub fn new(
+        file: &FileEntry,
+        text: String,
+        symbols: Vec<String>,
+        functions: Vec<(String, usize)>,
+    ) -> Self {
         Self {
             path: file.path.clone(),
             relative: file.relative.clone(),
@@ -30,7 +36,8 @@ impl Description {
             error: None,
             from_cache: false,
             total_lines: None,
-            long_functions: Vec::new(),
+            long_functions: vec![],
+            functions,
             symbols,
         }
     }
@@ -39,7 +46,8 @@ impl Description {
         file: &FileEntry,
         text: String,
         total_lines: Option<usize>,
-        long_functions: Vec<(String, usize)>,
+        long_functions: Vec<(String, usize)>, // устарело, загружается из старого кэша
+        functions: Vec<(String, usize)>,
         symbols: Vec<String>,
     ) -> Self {
         Self {
@@ -50,6 +58,7 @@ impl Description {
             from_cache: true,
             total_lines,
             long_functions,
+            functions,
             symbols,
         }
     }
@@ -63,6 +72,7 @@ impl Description {
             from_cache: false,
             total_lines: None,
             long_functions: Vec::new(),
+            functions: Vec::new(),
             symbols: Vec::new(),
         }
     }

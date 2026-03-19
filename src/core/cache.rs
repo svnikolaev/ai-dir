@@ -1,3 +1,4 @@
+// src/core/cache.rs
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,7 +8,8 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileMetadata {
     pub total_lines: usize,
-    pub long_functions: Vec<(String, usize)>,
+    pub long_functions: Vec<(String, usize)>, // устарело, для обратной совместимости
+    pub functions: Vec<(String, usize)>,
     pub symbols: Vec<String>,
 }
 

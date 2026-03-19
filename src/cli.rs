@@ -8,22 +8,17 @@ use std::path::PathBuf;
     about = "Generate one-line descriptions for files in a directory",
     version,
     after_help = "EXAMPLES:\n\
-                  \x20  # Basic pattern mode (default)\n\
-                  \x20    aid\n\
-                  \x20  # Show only files with long functions\n\
-                  \x20    aid --long\n\
-                  \x20  # LLM mode with Russian descriptions\n\
-                  \x20    aid -m llm --lang ru /path/to/project\n\
-                  \x20  # Dump mode (plain format, default)\n\
-                  \x20    aid --dump . > all.txt\n\
-                  \x20  # Dump in Markdown format with metadata\n\
-                  \x20    aid --dump md --detailed src/ > docs.md\n\
-                  \x20  # Dump in XML with absolute paths\n\
-                  \x20    aid --dump xml --absolute-paths . > project.xml\n\
-                  \x20  # Show staged changes (for commit messages)\n\
-                  \x20    aid --diff --staged (aid -gs)\n\
-                  \x20  # Clear cache before running\n\
-                  \x20    aid --refresh-cache"
+                  \x20  # Basic pattern mode\n\x20  aid\n\
+                  \x20  # Show only long functions (threshold 20)\n\x20  aid --long\n\
+                  \x20  # Show functions longer than 40 lines\n\x20  aid --long 40\n\
+                  \x20  # LLM mode with Russian\n\x20  aid -m llm --lang ru /path\n\
+                  \x20  # Dump plain\n\x20  aid --dump . > all.txt\n\
+                  \x20  # Dump markdown with metadata\n\x20  aid --dump markdown --detailed src/ > docs.md\n\
+                  \x20  # Dump XML\n\x20  aid --dump xml . > project.xml\n\
+                  \x20  # Limit size/lines\n\x20  aid --dump --max-size 1M --max-lines 50 .\n\
+                  \x20  # Git diff (staged)\n\x20  aid -gs\n\
+                  \x20  # Clear cache\n\x20  aid --refresh-cache\n\
+                  \x20  # Full symbols in JSON\n\x20  aid --format json -T"
 )]
 pub struct Args {
     #[arg(default_value = ".", help = "Directory to analyze")]
@@ -93,13 +88,9 @@ pub struct Args {
     #[arg(short = 's', long, help = "Show staged changes (git diff --staged)")]
     pub staged: bool,
 
-    // Long functions
-    #[arg(
-        short = 'l',
-        long,
-        help = "Show only files with functions longer than threshold"
-    )]
-    pub long: bool,
+    // Long functions threshold
+    #[arg(short = 'l', long, default_missing_value = "20", num_args(0..=1), value_name = "LINES", help = "Show only files with functions longer than LINES (default: 20)")]
+    pub long: Option<usize>,
 
     // Cache control
     #[arg(

@@ -19,18 +19,18 @@ pub fn print_tree(
     descriptions: &[Description],
     max_depth: Option<usize>,
     format: OutputFormat,
-    show_long: bool,
+    long_threshold: Option<usize>,
     no_long_indicator: bool,
 ) {
-    if show_long {
+    if let Some(threshold) = long_threshold {
         match format {
-            OutputFormat::Json => print_long_functions_json(descriptions),
+            OutputFormat::Json => print_long_functions_json(descriptions, threshold),
             OutputFormat::Xml => {
                 let stdout = stdout();
                 let mut handle = stdout.lock();
-                print_long_functions_xml(&mut handle, descriptions).unwrap();
+                print_long_functions_xml(&mut handle, descriptions, threshold).unwrap();
             }
-            _ => print_long_functions(descriptions), // plain/color - используем старый plain вывод
+            _ => print_long_functions(descriptions, threshold),
         }
         return;
     }
@@ -71,6 +71,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                functions: vec![],
                 symbols: vec![],
             },
             Description {
@@ -81,6 +82,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                functions: vec![],
                 symbols: vec![],
             },
             Description {
@@ -91,6 +93,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                functions: vec![],
                 symbols: vec![],
             },
         ];

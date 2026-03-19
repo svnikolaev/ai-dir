@@ -8,13 +8,12 @@ pub mod pattern;
 
 use pattern::LANGUAGE_PATTERNS;
 
-const LONG_FUNCTION_THRESHOLD: usize = 20;
-
 fn count_lines(content: &str) -> usize {
     content.lines().count()
 }
 
-fn find_long_functions_rust(content: &str) -> Vec<(String, usize)> {
+/// Извлечение функций из Rust кода с определением их размера в строках
+fn extract_functions_rust(content: &str) -> Vec<(String, usize)> {
     let mut result = Vec::new();
     let fn_re = Regex::new(r"(?m)^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(").unwrap();
     let lines: Vec<&str> = content.lines().collect();
@@ -48,17 +47,16 @@ fn find_long_functions_rust(content: &str) -> Vec<(String, usize)> {
         }
         if found {
             let fn_lines = end_line - start_line + 1;
-            if fn_lines >= LONG_FUNCTION_THRESHOLD {
-                result.push((fn_name, fn_lines));
-            }
+            result.push((fn_name, fn_lines));
         }
     }
     result
 }
 
-fn find_long_functions(ext: &str, content: &str) -> Vec<(String, usize)> {
+/// Общая функция для извлечения функций в зависимости от языка
+fn extract_functions(ext: &str, content: &str) -> Vec<(String, usize)> {
     match ext {
-        "rs" => find_long_functions_rust(content),
+        "rs" => extract_functions_rust(content),
         _ => Vec::new(),
     }
 }
@@ -80,6 +78,7 @@ pub fn describe_files_pattern(
                 metadata
                     .map(|m| m.long_functions.clone())
                     .unwrap_or_default(),
+                metadata.map(|m| m.functions.clone()).unwrap_or_default(),
                 metadata.map(|m| m.symbols.clone()).unwrap_or_default(),
             ));
             continue;
@@ -94,9 +93,9 @@ pub fn describe_files_pattern(
         };
 
         let total_lines = count_lines(&content);
-        let mut raw_symbols = Vec::new(); // все найденные символы (могут повторяться)
-        let mut unique_symbols = Vec::new(); // уникальные символы для отображения
-        let mut long_functions = Vec::new();
+        let mut raw_symbols = Vec::new();
+        let mut unique_symbols = Vec::new();
+        let mut functions = Vec::new();
         if let Some(ext) = file.relative.split('.').last() {
             if let Some(patterns) = LANGUAGE_PATTERNS.get(ext) {
                 for (type_name, re) in patterns {
@@ -109,10 +108,9 @@ pub fn describe_files_pattern(
                     }
                 }
             }
-            long_functions = find_long_functions(ext, &content);
+            functions = extract_functions(ext, &content);
         }
 
-        // Формируем текст для отображения (влияет only на human-readable форматы)
         let text = if raw_symbols.is_empty() {
             "no symbols".into()
         } else {
@@ -134,10 +132,12 @@ pub fn describe_files_pattern(
             display.join(", ")
         };
 
+        // long_functions пока оставляем пустым, будем использовать functions
         let metadata = FileMetadata {
             total_lines,
-            long_functions: long_functions.clone(),
-            symbols: unique_symbols.clone(), // сохраняем уникальные символы
+            long_functions: vec![], // устарело
+            functions: functions.clone(),
+            symbols: unique_symbols.clone(),
         };
         cache.insert(
             file.path.clone(),
@@ -154,7 +154,8 @@ pub fn describe_files_pattern(
             error: None,
             from_cache: false,
             total_lines: Some(total_lines),
-            long_functions,
+            long_functions: vec![],
+            functions,
             symbols: unique_symbols,
         });
     }
