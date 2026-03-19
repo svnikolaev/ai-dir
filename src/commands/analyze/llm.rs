@@ -14,7 +14,6 @@ pub fn describe_files(
     let client = Client::new();
     let mut results = Vec::new();
 
-    // Параметры для llm: язык, модель (первого бэкенда)
     let params = json!({
         "language": config.language,
         "model": config.backends.first().map(|b| b.model.clone()).unwrap_or_default(),
@@ -27,6 +26,7 @@ pub fn describe_files(
                 cached_text.to_string(),
                 None,
                 vec![],
+                vec![], // symbols
             ));
             continue;
         }
@@ -55,7 +55,7 @@ pub fn describe_files(
         for backend in &config.backends {
             match call_backend(&client, backend, &prompt) {
                 Ok(text) => {
-                    let desc = Description::new(file, text.clone());
+                    let desc = Description::new(file, text.clone(), vec![]);
                     cache.insert(
                         file.path.clone(),
                         text,

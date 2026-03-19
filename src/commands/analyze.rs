@@ -3,21 +3,17 @@ use crate::core::types::{Description, FileEntry};
 use regex::Regex;
 use std::fs;
 
-// Подмодули
 pub mod llm;
 pub mod pattern;
 
-// Импортируем готовую карту паттернов из модуля pattern
 use pattern::LANGUAGE_PATTERNS;
 
 const LONG_FUNCTION_THRESHOLD: usize = 20;
 
-/// Подсчёт количества строк в файле
 fn count_lines(content: &str) -> usize {
     content.lines().count()
 }
 
-/// Поиск длинных функций в Rust (упрощённая эвристика)
 fn find_long_functions_rust(content: &str) -> Vec<(String, usize)> {
     let mut result = Vec::new();
     let fn_re = Regex::new(r"(?m)^\s*(?:pub\s+)?(?:async\s+)?fn\s+(\w+)\s*\(").unwrap();
@@ -60,7 +56,6 @@ fn find_long_functions_rust(content: &str) -> Vec<(String, usize)> {
     result
 }
 
-/// Общая функция для поиска длинных функций в зависимости от языка
 fn find_long_functions(ext: &str, content: &str) -> Vec<(String, usize)> {
     match ext {
         "rs" => find_long_functions_rust(content),
@@ -68,7 +63,6 @@ fn find_long_functions(ext: &str, content: &str) -> Vec<(String, usize)> {
     }
 }
 
-/// Режим pattern: быстрое извлечение символов из файлов
 pub fn describe_files_pattern(
     files: &[FileEntry],
     cache: &mut Cache,
@@ -86,6 +80,7 @@ pub fn describe_files_pattern(
                 metadata
                     .map(|m| m.long_functions.clone())
                     .unwrap_or_default(),
+                metadata.map(|m| m.symbols.clone()).unwrap_or_default(),
             ));
             continue;
         }
@@ -99,47 +94,50 @@ pub fn describe_files_pattern(
         };
 
         let total_lines = count_lines(&content);
-        let mut symbols = Vec::new();
+        let mut raw_symbols = Vec::new(); // все найденные символы (могут повторяться)
+        let mut unique_symbols = Vec::new(); // уникальные символы для отображения
         let mut long_functions = Vec::new();
         if let Some(ext) = file.relative.split('.').last() {
             if let Some(patterns) = LANGUAGE_PATTERNS.get(ext) {
                 for (type_name, re) in patterns {
                     for cap in re.captures_iter(&content) {
-                        symbols.push(format!("{} {}", type_name, &cap[1]));
+                        let sym = format!("{} {}", type_name, &cap[1]);
+                        raw_symbols.push(sym.clone());
+                        if !unique_symbols.contains(&sym) {
+                            unique_symbols.push(sym);
+                        }
                     }
                 }
             }
             long_functions = find_long_functions(ext, &content);
         }
 
-        let text = if symbols.is_empty() {
+        // Формируем текст для отображения (влияет only на human-readable форматы)
+        let text = if raw_symbols.is_empty() {
             "no symbols".into()
         } else {
-            let mut unique = Vec::new();
+            let mut display = Vec::new();
             if no_truncate {
-                // Показываем все уникальные символы
-                for s in &symbols {
-                    if !unique.contains(s) {
-                        unique.push(s.clone());
-                    }
-                }
+                display = unique_symbols.clone();
             } else {
-                // Ограничиваем до 10 и добавляем многоточие
-                for s in &symbols {
-                    if !unique.contains(s) && unique.len() < 10 {
-                        unique.push(s.clone());
+                for s in &unique_symbols {
+                    if display.len() < 10 {
+                        display.push(s.clone());
+                    } else {
+                        break;
                     }
                 }
-                if symbols.len() > 10 {
-                    unique.push("…".to_string());
+                if unique_symbols.len() > 10 {
+                    display.push("…".to_string());
                 }
             }
-            unique.join(", ")
+            display.join(", ")
         };
 
         let metadata = FileMetadata {
             total_lines,
             long_functions: long_functions.clone(),
+            symbols: unique_symbols.clone(), // сохраняем уникальные символы
         };
         cache.insert(
             file.path.clone(),
@@ -157,6 +155,7 @@ pub fn describe_files_pattern(
             from_cache: false,
             total_lines: Some(total_lines),
             long_functions,
+            symbols: unique_symbols,
         });
     }
 

@@ -10,7 +10,6 @@ use std::path::PathBuf;
 fn main() -> Result<()> {
     let args = cli::Args::parse();
 
-    // Если запрошен diff, запускаем его и выходим
     if args.diff {
         commands::diff::run(args.staged)?;
         return Ok(());
@@ -43,7 +42,6 @@ fn main() -> Result<()> {
         config.language = lang;
     }
 
-    // Принудительное обновление кэша – удаляем файл кэша, если он существует
     if args.refresh_cache {
         let cache_path = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -77,7 +75,6 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    // Режим analyze
     let mut cache = if config.cache_enabled && !args.no_cache {
         core::cache::Cache::load().unwrap_or_else(|e| {
             eprintln!("Warning: failed to load cache ({}), using empty cache", e);

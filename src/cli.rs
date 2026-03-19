@@ -9,46 +9,21 @@ use std::path::PathBuf;
     version,
     after_help = "EXAMPLES:\n\
                   \x20  # Basic pattern mode (default)\n\
-                  \x20  aid\n\
-                  \n\
+                  \x20    aid\n\
                   \x20  # Show only files with long functions\n\
-                  \x20  aid --long\n\
-                  \n\
-                  \x20  # Show all symbols without truncation\n\
-                  \x20  aid --no-truncate\n\
-                  \n\
-                  \x20  # Hide long functions indicator in file lines\n\
-                  \x20  aid --no-long-indicator\n\
-                  \n\
+                  \x20    aid --long\n\
                   \x20  # LLM mode with Russian descriptions\n\
-                  \x20  aid -m llm --lang ru /path/to/project\n\
-                  \n\
+                  \x20    aid -m llm --lang ru /path/to/project\n\
                   \x20  # Dump mode (plain format, default)\n\
-                  \x20  aid --dump . > all.txt\n\
-                  \n\
+                  \x20    aid --dump . > all.txt\n\
                   \x20  # Dump in Markdown format with metadata\n\
-                  \x20  aid --dump markdown --detailed src/ > docs.md\n\
-                  \n\
+                  \x20    aid --dump md --detailed src/ > docs.md\n\
                   \x20  # Dump in XML with absolute paths\n\
-                  \x20  aid --dump xml --absolute-paths . > project.xml\n\
-                  \n\
-                  \x20  # Limit file size and lines per file\n\
-                  \x20  aid --dump --max-size 1M --max-lines 50 .\n\
-                  \n\
-                  \x20  # Include binary files (use with caution)\n\
-                  \x20  aid --dump --include-binary .\n\
-                  \n\
-                  \x20  # Quiet mode (suppress warnings)\n\
-                  \x20  aid --dump --quiet .\n\
-                  \n\
-                  \x20  # Show git diff (unstaged changes)\n\
-                  \x20  aid --diff\n\
-                  \n\
+                  \x20    aid --dump xml --absolute-paths . > project.xml\n\
                   \x20  # Show staged changes (for commit messages)\n\
-                  \x20  aid --diff --staged\n\
-                  \n\
+                  \x20    aid --diff --staged (aid -gs)\n\
                   \x20  # Clear cache before running\n\
-                  \x20  aid --refresh-cache"
+                  \x20    aid --refresh-cache"
 )]
 pub struct Args {
     #[arg(default_value = ".", help = "Directory to analyze")]
@@ -135,7 +110,11 @@ pub struct Args {
     pub refresh_cache: bool,
 
     // Display options
-    #[arg(long, help = "Do not truncate symbol list (show all symbols)")]
+    #[arg(
+        short = 'T',
+        long,
+        help = "Do not truncate symbol list (show all symbols)"
+    )]
     pub no_truncate: bool,
 
     #[arg(long, help = "Hide long functions indicator (long: N) from output")]

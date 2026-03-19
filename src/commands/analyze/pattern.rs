@@ -70,7 +70,7 @@ mod tests {
         "#;
         let (entry, _dir) = create_file(content, "rs");
         let mut cache = Cache::new();
-        // Добавлен третий аргумент `false`
+        // Важно: теперь describe_files_pattern требует третий аргумент (no_truncate)
         let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
         assert_eq!(result.len(), 1);
         let desc = &result[0];
@@ -84,6 +84,9 @@ mod tests {
         assert!(desc.text.contains("type MyType"));
         assert!(desc.text.contains("const MY_CONST"));
         assert!(!desc.text.contains("…"));
+        // Проверяем, что полные символы сохранены
+        assert!(desc.symbols.contains(&"struct MyStruct".to_string()));
+        assert_eq!(desc.symbols.len(), 9); // количество уникальных символов
     }
 
     #[test]
@@ -91,8 +94,8 @@ mod tests {
         let content = "just plain text without any symbols";
         let (entry, _dir) = create_file(content, "txt");
         let mut cache = Cache::new();
-        // Добавлен третий аргумент `false`
         let result = super::super::describe_files_pattern(&[entry], &mut cache, false);
         assert_eq!(result[0].text, "no symbols");
+        assert!(result[0].symbols.is_empty());
     }
 }

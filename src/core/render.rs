@@ -1,16 +1,19 @@
 use crate::core::types::{Description, OutputFormat};
+use std::io::stdout;
 
 mod color;
 mod json;
 mod long;
 mod plain;
 mod tree;
+mod xml;
 
 pub use self::color::print_color;
 pub use self::json::print_json;
-pub use self::long::print_long_functions;
+pub use self::long::{print_long_functions, print_long_functions_json, print_long_functions_xml};
 pub use self::plain::print_plain;
 pub use self::tree::build_tree;
+pub use self::xml::print_xml;
 
 pub fn print_tree(
     descriptions: &[Description],
@@ -20,7 +23,15 @@ pub fn print_tree(
     no_long_indicator: bool,
 ) {
     if show_long {
-        print_long_functions(descriptions);
+        match format {
+            OutputFormat::Json => print_long_functions_json(descriptions),
+            OutputFormat::Xml => {
+                let stdout = stdout();
+                let mut handle = stdout.lock();
+                print_long_functions_xml(&mut handle, descriptions).unwrap();
+            }
+            _ => print_long_functions(descriptions), // plain/color - используем старый plain вывод
+        }
         return;
     }
 
@@ -29,6 +40,7 @@ pub fn print_tree(
     if tree.children.is_empty() {
         match format {
             OutputFormat::Json => println!("[]"),
+            OutputFormat::Xml => println!("<files />"),
             _ => println!("No matching files found."),
         }
         return;
@@ -36,6 +48,7 @@ pub fn print_tree(
 
     match format {
         OutputFormat::Json => print_json(&tree, max_depth),
+        OutputFormat::Xml => print_xml(&tree, max_depth),
         OutputFormat::Plain => print_plain(&tree, "", 0, max_depth, no_long_indicator),
         OutputFormat::Color => print_color(&tree, "", 0, max_depth, no_long_indicator),
     }
@@ -58,6 +71,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                symbols: vec![],
             },
             Description {
                 path: PathBuf::from("/a/c.rs"),
@@ -67,6 +81,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                symbols: vec![],
             },
             Description {
                 path: PathBuf::from("/d.rs"),
@@ -76,6 +91,7 @@ mod tests {
                 from_cache: false,
                 total_lines: None,
                 long_functions: vec![],
+                symbols: vec![],
             },
         ];
         let tree = build_tree(&desc);

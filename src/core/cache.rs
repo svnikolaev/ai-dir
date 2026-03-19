@@ -4,26 +4,25 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Метаданные файла, сохраняемые в кэше
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FileMetadata {
     pub total_lines: usize,
-    pub long_functions: Vec<(String, usize)>, // (имя функции, количество строк)
+    pub long_functions: Vec<(String, usize)>,
+    pub symbols: Vec<String>,
 }
 
-/// Запись кэша
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct CacheEntry {
     mtime: i64,
     text: String,
-    mode: String,                   // "pattern" или "llm"
-    params: serde_json::Value,      // параметры режима (например, {"language": "en"} для llm)
-    metadata: Option<FileMetadata>, // метаданные, доступные только для pattern
+    mode: String,
+    params: serde_json::Value,
+    metadata: Option<FileMetadata>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Cache {
-    entries: HashMap<PathBuf, Vec<CacheEntry>>, // теперь для одного пути может быть несколько записей (разные режимы/параметры)
+    entries: HashMap<PathBuf, Vec<CacheEntry>>,
     #[serde(skip)]
     path: PathBuf,
 }
@@ -60,7 +59,6 @@ impl Cache {
         Ok(())
     }
 
-    /// Получить запись из кэша по пути, режиму и параметрам
     pub fn get(
         &self,
         path: &Path,
@@ -81,13 +79,12 @@ impl Cache {
                         }
                     }
                 }
-                break; // если mtime не совпал, запись устарела, но может быть другая с теми же mode/params? нет, только одна.
+                break;
             }
         }
         None
     }
 
-    /// Вставить запись
     pub fn insert(
         &mut self,
         path: PathBuf,
@@ -114,7 +111,6 @@ impl Cache {
             .entry(path)
             .or_insert_with(Vec::new)
             .push(entry);
-        // Для поддержки ограничения числа записей на файл можно оставить только последнюю или все. Пока оставляем все.
     }
 }
 
@@ -123,10 +119,4 @@ fn default_cache_path() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
         .join("ai-dir")
         .join("cache.json")
-}
-
-#[cfg(test)]
-mod tests {
-    // Тесты временно отключены из-за изменений в структуре кэша.
-    // TODO: переписать тесты для новой версии Cache.
 }
