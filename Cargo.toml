@@ -1,6 +1,6 @@
 [package]
 name = "ai-dir"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 description = "Fast project file description tool with LLM and pattern modes"
 authors = ["Serg Nikolaev <s.nikolaev@nklv.su>"]
@@ -16,6 +16,7 @@ dirs = "5.0"
 ignore = "0.4"
 once_cell = "1.19"
 proc-macro2 = { version = "1.0", features = ["span-locations"] } 
+quote = "1.0"
 regex = "1.10"
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }

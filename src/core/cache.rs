@@ -68,7 +68,6 @@ impl Cache {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent)?;
         }
-        // Атомарное сохранение: пишем во временный файл, затем переименовываем
         let temp_path = self.path.with_extension("tmp");
         let content = serde_json::to_string_pretty(self)?;
         fs::write(&temp_path, content)?;
@@ -76,6 +75,7 @@ impl Cache {
         Ok(())
     }
 
+    /// Возвращает текст описания и метаданные, если есть актуальная запись с указанными mode и params.
     pub fn get(
         &self,
         path: &Path,
@@ -102,6 +102,8 @@ impl Cache {
         None
     }
 
+    /// Вставляет запись в кэш. Если для данного пути уже есть запись с такими же mode и params,
+    /// она заменяется. Остальные записи для этого пути сохраняются.
     pub fn insert(
         &mut self,
         path: PathBuf,
@@ -117,15 +119,24 @@ impl Cache {
                 .as_millis() as i64,
             Err(_) => return,
         };
-        let entry = CacheEntry {
+        let new_entry = CacheEntry {
             mtime,
             text,
-            mode,
-            params,
+            mode: mode.clone(),
+            params: params.clone(),
             metadata,
         };
-        // Заменяем все старые записи для этого пути новой (оставляем только последнюю)
-        self.entries.insert(path, vec![entry]);
+
+        let entries = self.entries.entry(path).or_insert_with(Vec::new);
+        // Ищем существующую запись с таким же mode и params
+        if let Some(pos) = entries
+            .iter()
+            .position(|e| e.mode == mode && e.params == params)
+        {
+            entries[pos] = new_entry;
+        } else {
+            entries.push(new_entry);
+        }
     }
 }
 
@@ -144,44 +155,16 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_cache_insert_replaces_old_entries() {
+    fn test_cache_insert_multiple_entries() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("file.rs");
-        File::create(&file_path).unwrap(); // создаём файл
+        File::create(&file_path).unwrap();
 
         let mut cache = Cache::new();
         let path = file_path.clone();
 
-        cache.insert(
-            path.clone(),
-            "text1".into(),
-            "mode".into(),
-            json!({"p": 1}),
-            None,
-        );
-        cache.insert(
-            path.clone(),
-            "text2".into(),
-            "mode".into(),
-            json!({"p": 2}),
-            None,
-        );
-
-        let entries = cache.entries.get(&path).unwrap();
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].text, "text2");
-    }
-
-    #[test]
-    fn test_cache_get_respects_params() {
-        let dir = tempdir().unwrap();
-        let file_path = dir.path().join("file.rs");
-        File::create(&file_path).unwrap(); // создаём файл
-
-        let mut cache = Cache::new();
-        let path = file_path;
-        let params1 = json!({"hash": "abc"});
-        let params2 = json!({"hash": "def"});
+        let params1 = json!({"p": 1});
+        let params2 = json!({"p": 2});
 
         cache.insert(
             path.clone(),
@@ -190,7 +173,6 @@ mod tests {
             params1.clone(),
             None,
         );
-        // Вставляем вторую запись, она заменит первую
         cache.insert(
             path.clone(),
             "text2".into(),
@@ -199,9 +181,41 @@ mod tests {
             None,
         );
 
-        // После замены первой записи второй, первая не должна быть доступна
-        assert!(cache.get(&path, "mode", &params1).is_none());
-        // Вторая должна быть доступна
+        let entries = cache.entries.get(&path).unwrap();
+        assert_eq!(entries.len(), 2);
+
+        // Проверяем, что обе записи доступны
+        assert!(cache.get(&path, "mode", &params1).is_some());
         assert!(cache.get(&path, "mode", &params2).is_some());
+    }
+
+    #[test]
+    fn test_cache_insert_replaces_same_params() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("file.rs");
+        File::create(&file_path).unwrap();
+
+        let mut cache = Cache::new();
+        let path = file_path.clone();
+        let params = json!({"p": 1});
+
+        cache.insert(
+            path.clone(),
+            "text1".into(),
+            "mode".into(),
+            params.clone(),
+            None,
+        );
+        cache.insert(
+            path.clone(),
+            "text2".into(),
+            "mode".into(),
+            params.clone(),
+            None,
+        );
+
+        let entries = cache.entries.get(&path).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].text, "text2");
     }
 }

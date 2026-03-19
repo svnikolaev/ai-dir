@@ -1,7 +1,7 @@
 use crate::core::cache::Cache;
 use crate::core::config::{Backend, Config};
 use crate::core::types::{Description, FileEntry};
-use anyhow::{Result, anyhow};
+use anyhow::{Result, anyhow, bail};
 use reqwest::blocking::Client;
 use serde_json::{Value, json};
 use std::fs;
@@ -12,10 +12,13 @@ pub fn describe_files(
     cache: &mut Cache,
     quiet: bool,
 ) -> Result<Vec<Description>> {
+    if config.backends.is_empty() {
+        bail!("No LLM backends configured. Please add at least one backend in config.toml");
+    }
+
     let client = Client::new();
     let mut results = Vec::new();
 
-    // Берем первый бэкенд для параметров (fallback-бэкенды должны иметь одинаковые значимые параметры? Для кэша используем параметры первого бэкенда)
     let backend_params = config
         .backends
         .first()
@@ -40,7 +43,6 @@ pub fn describe_files(
             continue;
         }
 
-        // Проверка размера файла (опционально, можно тоже пропускать большие)
         if let Some(max_size) = config.max_file_size {
             if let Ok(meta) = fs::metadata(&file.path) {
                 if meta.len() > max_size {
@@ -262,5 +264,20 @@ mod tests {
         assert_eq!(result[0].text, "[ERROR]");
         assert!(result[0].error.as_deref() == Some("all backends failed"));
         mock.assert();
+    }
+
+    #[test]
+    fn test_llm_no_backends() {
+        let config = crate::core::config::Config {
+            backends: vec![],
+            language: crate::core::types::Language::En,
+            ..Default::default()
+        };
+        let (entry, _dir) = create_file("test");
+        let mut cache = Cache::new();
+        let result = describe_files(&[entry], &config, &mut cache, false);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("No LLM backends configured"));
     }
 }

@@ -7,56 +7,22 @@ mod llm;
 mod pattern;
 
 use pattern::LANGUAGE_PATTERNS;
-use syn::spanned::Spanned;
-use syn::{self, ImplItemFn, ItemFn, visit::Visit};
+use pattern::rust::extract_from_rust; // добавляем use
 
 const PATTERN_CACHE_VERSION: u32 = 1;
+const DEFAULT_LONG_THRESHOLD: usize = 20;
 
 fn count_lines(content: &str) -> usize {
     content.lines().count()
 }
 
-struct FunctionCollector {
-    functions: Vec<(String, usize)>,
-}
-
-impl<'ast> Visit<'ast> for FunctionCollector {
-    fn visit_item_fn(&mut self, node: &'ast ItemFn) {
-        let name = node.sig.ident.to_string();
-        let start_line = node.span().start().line;
-        let end_line = node.span().end().line;
-        let lines = end_line - start_line + 1;
-        self.functions.push((name, lines));
-        syn::visit::visit_item_fn(self, node);
-    }
-
-    fn visit_impl_item_fn(&mut self, node: &'ast ImplItemFn) {
-        let name = node.sig.ident.to_string();
-        let start_line = node.span().start().line;
-        let end_line = node.span().end().line;
-        let lines = end_line - start_line + 1;
-        self.functions.push((name, lines));
-        syn::visit::visit_impl_item_fn(self, node);
-    }
-}
-
-/// Извлечение функций из Rust кода с точным определением строк с использованием `syn`.
-fn extract_functions_rust(content: &str) -> Vec<(String, usize)> {
-    let ast = match syn::parse_file(content) {
-        Ok(ast) => ast,
-        Err(_) => return Vec::new(),
-    };
-    let mut collector = FunctionCollector {
-        functions: Vec::new(),
-    };
-    collector.visit_file(&ast);
-    collector.functions
-}
-
 /// Общая функция для извлечения функций в зависимости от языка
 fn extract_functions(ext: &str, content: &str) -> Vec<(String, usize)> {
     match ext {
-        "rs" => extract_functions_rust(content),
+        "rs" => {
+            let (_, functions) = extract_from_rust(content);
+            functions
+        }
         _ => Vec::new(),
     }
 }
@@ -88,15 +54,28 @@ pub fn describe_files_pattern(
         }
 
         if let Some((cached_text, metadata)) = cache.get(&file.path, "pattern", &params) {
+            let (functions, symbols) = if let Some(meta) = metadata {
+                let functions = if meta.functions.is_empty() && !meta.long_functions.is_empty() {
+                    meta.long_functions.clone()
+                } else {
+                    meta.functions.clone()
+                };
+                (functions, meta.symbols.clone())
+            } else {
+                (Vec::new(), Vec::new())
+            };
+            let long_functions: Vec<_> = functions
+                .iter()
+                .filter(|(_, lines)| *lines >= DEFAULT_LONG_THRESHOLD)
+                .cloned()
+                .collect();
             results.push(Description::cached(
                 file,
                 cached_text.to_string(),
                 metadata.map(|m| m.total_lines),
-                metadata
-                    .map(|m| m.long_functions.clone())
-                    .unwrap_or_default(),
-                metadata.map(|m| m.functions.clone()).unwrap_or_default(),
-                metadata.map(|m| m.symbols.clone()).unwrap_or_default(),
+                long_functions,
+                functions,
+                symbols,
             ));
             continue;
         }
@@ -110,11 +89,16 @@ pub fn describe_files_pattern(
         };
 
         let total_lines = count_lines(&content);
-        let mut raw_symbols = Vec::new();
         let mut unique_symbols = Vec::new();
         let mut functions = Vec::new();
+
         if let Some(ext) = file.relative.split('.').last() {
-            if let Some(patterns) = LANGUAGE_PATTERNS.get(ext) {
+            if ext == "rs" {
+                let (symbols, funcs) = extract_from_rust(&content);
+                unique_symbols = symbols;
+                functions = funcs;
+            } else if let Some(patterns) = LANGUAGE_PATTERNS.get(ext) {
+                let mut raw_symbols = Vec::new();
                 for (type_name, re) in patterns {
                     for cap in re.captures_iter(&content) {
                         let sym = format!("{} {}", type_name, &cap[1]);
@@ -124,11 +108,11 @@ pub fn describe_files_pattern(
                         }
                     }
                 }
+                functions = extract_functions(ext, &content);
             }
-            functions = extract_functions(ext, &content);
         }
 
-        let text = if raw_symbols.is_empty() {
+        let text = if unique_symbols.is_empty() {
             "no symbols".into()
         } else {
             let mut display = Vec::new();
@@ -149,9 +133,15 @@ pub fn describe_files_pattern(
             display.join(", ")
         };
 
+        let long_functions: Vec<_> = functions
+            .iter()
+            .filter(|(_, lines)| *lines >= DEFAULT_LONG_THRESHOLD)
+            .cloned()
+            .collect();
+
         let metadata = FileMetadata {
             total_lines,
-            long_functions: vec![],
+            long_functions: long_functions.clone(),
             functions: functions.clone(),
             symbols: unique_symbols.clone(),
         };
@@ -170,7 +160,7 @@ pub fn describe_files_pattern(
             error: None,
             from_cache: false,
             total_lines: Some(total_lines),
-            long_functions: vec![],
+            long_functions,
             functions,
             symbols: unique_symbols,
         });
@@ -194,7 +184,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("large.rs");
         let mut file = File::create(&file_path).unwrap();
-        let data = vec![b'a'; 2 * 1024 * 1024]; // 2 МБ
+        let data = vec![b'a'; 2 * 1024 * 1024];
         file.write_all(&data).unwrap();
         drop(file);
 
@@ -205,11 +195,38 @@ mod tests {
 
         let mut cache = Cache::new();
         let mut config = Config::default();
-        config.max_file_size = Some(1024 * 1024); // 1 МБ
+        config.max_file_size = Some(1024 * 1024);
 
         let results = describe_files_pattern(&[entry], &mut cache, false, &config);
         assert_eq!(results.len(), 1);
         assert!(results[0].error.is_some());
         assert!(results[0].error.as_ref().unwrap().contains("SKIPPED"));
+    }
+
+    #[test]
+    fn test_rust_integration() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.rs");
+        let content = r#"
+            struct MyStruct;
+            fn func1() {}
+            fn func2() {
+                // много строк
+            }
+        "#;
+        std::fs::write(&file_path, content).unwrap();
+        let entry = FileEntry {
+            path: file_path,
+            relative: "test.rs".into(),
+        };
+        let mut cache = Cache::new();
+        let config = Config::default();
+        let results = describe_files_pattern(&[entry], &mut cache, true, &config);
+        assert_eq!(results.len(), 1);
+        let desc = &results[0];
+        assert!(desc.symbols.contains(&"struct MyStruct".to_string()));
+        assert!(desc.symbols.contains(&"fn func1".to_string()));
+        assert!(desc.symbols.contains(&"fn func2".to_string()));
+        assert_eq!(desc.functions.len(), 2);
     }
 }

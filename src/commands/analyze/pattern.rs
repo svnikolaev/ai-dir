@@ -85,7 +85,6 @@ mod tests {
         assert!(desc.text.contains("type MyType"));
         assert!(desc.text.contains("const MY_CONST"));
         assert!(!desc.text.contains("…"));
-        // Проверяем functions
         assert_eq!(desc.functions.len(), 3); // my_function, public_fn, async_fn
         assert_eq!(desc.symbols.len(), 9);
     }
@@ -101,4 +100,6 @@ mod tests {
         assert!(result[0].symbols.is_empty());
         assert!(result[0].functions.is_empty());
     }
+
+    // Тесты, использующие assert_cmd, удалены, так как они должны быть в интеграционных тестах
 }
