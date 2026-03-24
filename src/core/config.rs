@@ -4,8 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-pub const DEFAULT_INCLUDE_PATTERN: &str =
-    r"\.(rs|toml|md|txt|py|js|ts|go|java|cpp|c|h|cs|php|rb|swift|kt)$";
+pub const DEFAULT_INCLUDE_PATTERN: &str = concat!(
+    r"\.(rs|toml|md|txt|py|js|ts|go|java|cpp|c|h|cs|php|rb|swift|kt", // Группа кодовых языков
+    r"|sh|bash|zsh|fish|ps1|pl|lua|r|sql|yml|yaml|json|xml|conf|cfg|ini|env|gitignore|dockerignore|editorconfig|prettierrc|eslintrc)$", // Группа скриптов, конфигов и данных разработки
+    r"|(^|/)(Makefile|Dockerfile|README)$" // Специальные файлы без расширения
+);
 pub const DEFAULT_EXCLUDE_PATTERN: &str =
     r"(target|\.git|node_modules|dist|build|\.vscode|\.idea|__pycache__|\.venv|env)";
 

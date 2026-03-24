@@ -1,6 +1,6 @@
 [package]
 name = "ai-dir"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2024"
 description = "Fast project file description tool with LLM and pattern modes"
 authors = ["Serg Nikolaev <s.nikolaev@nklv.su>"]
